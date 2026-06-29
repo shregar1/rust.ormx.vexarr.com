@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ormx
+          POSTGRES_PASSWORD: ormx
+          POSTGRES_DB: ormx_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo build (default features)
+        run: cargo build --verbose
+      - name: cargo test (default features)
+        run: cargo test --verbose
+      - name: cargo test (all features)
+        env:
+          ORMX_TEST_PG_DSN: postgres://ormx:ormx@localhost:5432/ormx_test
+        run: cargo test --features 'postgres mysql sqlite migrations codegen' --verbose
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check

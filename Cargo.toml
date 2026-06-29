@@ -1,0 +1,63 @@
+[package]
+name = "ormx-rust-client"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Thin Rust query DSL on top of sqlx — typed builder, dialect-aware placeholders, optional migrations + schema codegen."
+repository = "https://github.com/shregar1/ormx-rust-client"
+homepage = "https://ormx.dev"
+documentation = "https://docs.rs/ormx-rust-client"
+readme = "README.md"
+keywords = ["postgres", "mysql", "sqlite", "sqlx", "orm"]
+categories = ["database"]
+authors = ["ORMX <noreply@ormx.dev>"]
+rust-version = "1.75"
+
+[lib]
+name = "ormx"
+path = "src/lib.rs"
+
+[dependencies]
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "any", "json", "chrono"] }
+async-trait = "0.1"
+async-stream = "0.3"
+futures-core = "0.3"
+futures-util = "0.3"
+thiserror = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Only pulled when the `migrate` feature is on. Used to checksum each
+# migration's UP SQL so we can detect drift (applied != on disk).
+sha2 = { version = "0.10", optional = true }
+
+[features]
+default = ["sqlite"]
+postgres = ["sqlx/postgres"]
+mysql = ["sqlx/mysql"]
+sqlite = ["sqlx/sqlite"]
+# Schema migrations (Postgres-only in Phase 1). See src/migrate.rs.
+# Note: named `migrations` (plural) to avoid collision with sqlx's own
+# `migrate` feature name during cross-crate feature unification.
+migrations = ["postgres", "dep:sha2"]
+# Schema introspection → typed Rust models (Postgres-only in Phase 1).
+# See src/codegen.rs.
+codegen = ["postgres"]
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "any"] }
+futures-util = "0.3"
+
+[[bench]]
+name = "perf"
+harness = false
+path = "benches/perf.rs"
+
+# Decomposed wire-vs-durability bench; pattern lifted from qx-storage's
+# append / append_sync split. Reports Δ = tx − no_tx so you can see the
+# BEGIN/COMMIT cost as its own line item, plus rows/sec throughput at
+# 100 / 1k / 10k for multi-VALUES inserts.
+[[bench]]
+name = "decomposed"
+harness = false
+path = "benches/decomposed.rs"
